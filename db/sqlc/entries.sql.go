@@ -9,8 +9,8 @@ import (
 	"context"
 )
 
-const createEntry = `-- name: CreateEntry :exec
-INSERT INTO entries (account_id, amount) VALUES ($1, $2)
+const createEntry = `-- name: CreateEntry :one
+INSERT INTO entries (account_id, amount) VALUES ($1, $2) RETURNING id, account_id, amount, created_at
 `
 
 type CreateEntryParams struct {
@@ -18,9 +18,16 @@ type CreateEntryParams struct {
 	Amount    int64 `json:"amount"`
 }
 
-func (q *Queries) CreateEntry(ctx context.Context, arg CreateEntryParams) error {
-	_, err := q.db.ExecContext(ctx, createEntry, arg.AccountID, arg.Amount)
-	return err
+func (q *Queries) CreateEntry(ctx context.Context, arg CreateEntryParams) (Entry, error) {
+	row := q.db.QueryRowContext(ctx, createEntry, arg.AccountID, arg.Amount)
+	var i Entry
+	err := row.Scan(
+		&i.ID,
+		&i.AccountID,
+		&i.Amount,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const getEntry = `-- name: GetEntry :one
